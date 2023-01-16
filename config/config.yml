@@ -1,6 +1,8 @@
 home_arrived_pos: 20
 home_last_review_date: 2023-01-16
 home_review_twice_range: 20
-home_step: 10
+home_step: 15
 password_admin: b
-password_login: c
+password_login: a
+port: 8000
+server: 127.0.0.1

@@ -8,6 +8,7 @@ config_dict = yaml.load(cfg, Loader=yaml.FullLoader)
 f.close()
 
 print(config_dict)
+print("http://" + config_dict['server'] + ":" + str(config_dict['port']))
 if datetime.date.today() > config_dict['home_last_review_date']:
     print("Yes")
 else:

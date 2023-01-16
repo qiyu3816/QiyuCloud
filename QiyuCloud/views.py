@@ -14,17 +14,22 @@ from .vocabulary import vocabulary_sql
 config_path = './config/config.yml'
 user_name = 'qiyu3816'
 
+def global_set(context):
+    context['name'] = user_name
+    f = open(config_path, 'r', encoding='utf-8')
+    cfg = f.read()
+    config_dict = yaml.load(cfg, Loader=yaml.FullLoader)
+    f.close()
+    context['copyright_link'] = "http://" + config_dict['server'] + ":" + str(config_dict['port']) + "/index/"
+    return config_dict
+
 def index(request):
     request.encoding = 'utf-8'
     context = {}
-    context['name'] = user_name
+    config_dict = global_set(context)
 
     if request.method == 'POST':
         password = request.POST.get('password')
-        f = open(config_path, 'r', encoding='utf-8')
-        cfg = f.read()
-        config_dict = yaml.load(cfg, Loader=yaml.FullLoader)
-        f.close()
         real_login_password = config_dict['password_login']
         if password == real_login_password:
             return redirect('/home/')
@@ -38,15 +43,11 @@ def index(request):
 def verify_admin(request):
     request.encoding = 'utf-8'
     context = {}
-    context['name'] = user_name
+    config_dict = global_set(context)
 
     if request.method == 'POST':
         password = request.POST.get('password')
 
-        f = open(config_path, 'r', encoding='utf-8')
-        cfg = f.read()
-        config_dict = yaml.load(cfg, Loader=yaml.FullLoader)
-        f.close()
         real_admin_password = config_dict['password_admin']
         if password == real_admin_password:
             return redirect('/resetpassword/')
@@ -60,17 +61,13 @@ def verify_admin(request):
 def reset_password(request):
     request.encoding = 'utf-8'
     context = {}
-    context['name'] = user_name
+    config_dict = global_set(context)
 
     if request.method == 'POST':
         password1 = request.POST.get('password1')
         password2 = request.POST.get('password2')
         if password1 == password2:
-            f = open(config_path, 'r', encoding='utf-8')
-            cfg = f.read()
-            config_dict = yaml.load(cfg, Loader=yaml.FullLoader)
             config_dict['password_login'] = password1
-            f.close()
 
             f = open(config_path, 'w', encoding='utf-8')
             yaml.dump(data=config_dict, stream=f, allow_unicode=True)
@@ -87,7 +84,9 @@ def reset_password(request):
 def home(request):
     request.encoding = 'utf-8'
     context = {}
-    context['name'] = user_name
+    config_dict = global_set(context)
+    context['data_url'] = "http://" + config_dict['server'] + ":" + str(config_dict['port']) + "/data"
+    context['review_finish_button_url'] = "http://" + config_dict['server'] + ":" + str(config_dict['port']) + "/home/"
 
     # 处理review_finish
     review_finish_button_click = False
@@ -95,10 +94,6 @@ def home(request):
         if request.POST.get('review_finish', True):
             review_finish_button_click = True
 
-    f = open(config_path, 'r', encoding='utf-8')
-    cfg = f.read()
-    config_dict = yaml.load(cfg, Loader=yaml.FullLoader)
-    f.close()
     already_finished = False
     if datetime.date.today() == config_dict['home_last_review_date']:
         already_finished = True
@@ -146,7 +141,7 @@ def home(request):
                     print("[home_page]:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
                           "Insert data's format is wrong.")
                     break
-            if sign:
+            if sign:  # 如果每个单数行都是全英文则格式合法
                 tuple_list = []
                 for i in range(0, len(insert_processed_data), 2):
                     tuple_list.append((insert_processed_data[i], insert_processed_data[i + 1], insert_processed_data[i + 1]))
