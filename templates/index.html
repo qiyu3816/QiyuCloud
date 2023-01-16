@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+</head>
+<body>
+
+<h1>{{ name }} welcome!</h1>
+<form class="form-signin" action="/index/" method="post">
+    {% csrf_token %}
+    <input type="password" name="password" placeholder="登录密码">
+    <input type="submit" value="登录">
+</form>
+<form class="verifyadmin" action="/verifyadmin/">
+    <input type="submit" value="修改登录密码">
+</form>
+<h2>Login {{ result }}!</h2>
+
+<div class="copy-rights">
+    <p>Copyright &copy; 2023.<a target="_blank" href="http://127.0.0.1:8000/index">QiyuCloud</a> All rights reserved.</p>
+</div>
+
+</body>
+</html>
