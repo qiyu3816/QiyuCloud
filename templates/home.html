@@ -30,12 +30,11 @@
   </thead>
 </table>
 
-{% if review_finish_button %} <h1>FUCK</h1> {% endif %}
 <input name="review_finish" type="button" {% if review_finish_button %} disabled="disabled" {% endif %} onclick="review_finish()" value="复习完成">
 <script>
     function review_finish() {
         $.ajax({
-            url: {{ review_finish_button_url }},
+            url: '{{ review_finish_button_url }}',
             method: 'POST',
             review_finish: true
         });

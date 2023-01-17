@@ -7,7 +7,6 @@ import json
 import yaml
 import os
 import time
-import datetime
 
 from .vocabulary import vocabulary_sql
 
@@ -95,13 +94,13 @@ def home(request):
             review_finish_button_click = True
 
     already_finished = False
-    if datetime.date.today() == config_dict['home_last_review_date']:
+    if time.strftime("%Y-%m-%d", time.localtime()) == str(config_dict['home_last_review_date']):
         already_finished = True
 
     if review_finish_button_click or already_finished:
         context['review_finish_button'] = True
         if review_finish_button_click and not already_finished:
-            config_dict['home_last_review_date'] = datetime.date.today()
+            config_dict['home_last_review_date'] = time.strftime("%Y-%m-%d", time.localtime())
             config_dict['home_review_twice_range'] = config_dict['home_step']
             config_dict['home_arrived_pos'] += config_dict['home_step']
             f = open(config_path, 'w+', encoding='utf-8')

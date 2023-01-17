@@ -79,7 +79,7 @@ class vocabulary_sql:
         np_data = np.asarray(result, dtype=(np.str_, np.str_))
         home_arrived_pos = config_dict['home_arrived_pos']
 
-        if datetime.date.today() > config_dict['home_last_review_date']:  # 基于home_step返回新数据
+        if time.strftime("%Y-%m-%d", time.localtime()) > str(config_dict['home_last_review_date']):  # 基于home_step返回新数据
             print("[vocabulary_sql]:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
                   "No review today, return new words.")
             home_step = config_dict['home_step']
