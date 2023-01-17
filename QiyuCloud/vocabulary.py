@@ -1,9 +1,9 @@
-import sys
 import time
 import datetime
 import yaml
 import pymysql.cursors
 import numpy as np
+import heapq
 
 class vocabulary_sql:
 
@@ -23,12 +23,14 @@ class vocabulary_sql:
 
 
     def insert_one(self, data):
+        full_data = (data[0], data[1], time.strftime("%Y-%m-%d", time.localtime()), data[2])
+
         try:
             with self.connection.cursor() as cursor:
                 # 重复en_word直接覆盖chi_val
-                sql = "INSERT INTO qiyu_vocabulary (`en_word`, `chi_val`) " \
-                      "VALUES(%s, %s) ON DUPLICATE KEY UPDATE chi_val=%s"
-                cursor.execute(sql, data)
+                sql = "INSERT INTO qiyu_vocabulary (`en_word`, `chi_val`, `create_time`) " \
+                      "VALUES(%s, %s, %s) ON DUPLICATE KEY UPDATE chi_val=%s"
+                cursor.execute(sql, full_data)
         except pymysql.Error as e:
             print(e)
             self.connection.rollback()
@@ -40,11 +42,15 @@ class vocabulary_sql:
 
 
     def insert_batch(self, tuple_data):
+        full_tuple_data = []
+        for item in tuple_data:
+            full_tuple_data.append((item[0], item[1], time.strftime("%Y-%m-%d", time.localtime()), item[2]))
+
         try:
             with self.connection.cursor() as cursor:
-                sql = "INSERT INTO qiyu_vocabulary (`en_word`, `chi_val`) " \
-                      "VALUES(%s, %s) ON DUPLICATE KEY UPDATE chi_val=%s"
-                for item in tuple_data:
+                sql = "INSERT INTO qiyu_vocabulary (`en_word`, `chi_val`, `create_time`) " \
+                      "VALUES(%s, %s, %s) ON DUPLICATE KEY UPDATE chi_val=%s"
+                for item in full_tuple_data:
                     cursor.execute(sql, item)
         except pymysql.Error as e:
             print(e)
@@ -56,6 +62,19 @@ class vocabulary_sql:
                   "Insert batch finished.")
 
 
+    def selected_date_process(self, np_data):
+        scores = np.array([])  # 热度 越高被选中概率越大
+        today_date = datetime.datetime.strptime(time.strftime("%Y-%m-%d", time.localtime()), "%Y-%m-%d").date()
+        for item in np_data:
+            create_dis = (today_date - datetime.datetime.strptime(item[3], "%Y-%m-%d").date()).days
+            if item[4] == 'None':
+                review_dis = 0
+            else:
+                review_dis = (today_date - datetime.datetime.strptime(item[4], "%Y-%m-%d").date()).days
+            scores = np.append(scores, np.exp(max(1 - create_dis, -4)) + np.exp(review_dis - 1))
+        return scores
+
+
     def select_batch(self):
         f = open(self.config_abs_path, 'r', encoding='utf-8')
         cfg = f.read()
@@ -64,7 +83,7 @@ class vocabulary_sql:
 
         try:
             with self.connection.cursor() as cursor:
-                sql = "SELECT `word_id`, `en_word`, `chi_val` FROM qiyu_vocabulary"
+                sql = "SELECT `word_id`, `en_word`, `chi_val`, `create_time`, `review_time` FROM qiyu_vocabulary"
                 cursor.execute(sql)
                 result = cursor.fetchall()
         except pymysql.Error as e:
@@ -76,38 +95,62 @@ class vocabulary_sql:
             print("[vocabulary_sql]:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
                   "Data got.")
 
-        np_data = np.asarray(result, dtype=(np.str_, np.str_))
-        home_arrived_pos = config_dict['home_arrived_pos']
+        np_data = np.asarray(result, dtype=np.str_)
 
         if time.strftime("%Y-%m-%d", time.localtime()) > str(config_dict['home_last_review_date']):  # 基于home_step返回新数据
             print("[vocabulary_sql]:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
                   "No review today, return new words.")
             home_step = config_dict['home_step']
             if home_step < len(np_data):
-                if home_arrived_pos + home_step < len(np_data):
-                    np_data[home_arrived_pos:home_arrived_pos + home_step, 0] = np.arange(1, home_step + 1, 1)
-                    return np_data[home_arrived_pos:home_arrived_pos + home_step]
-                else:
-                    rt_data = np.reshape(np.append(np_data[home_arrived_pos:],
-                                                   np_data[:(home_arrived_pos + home_step) % len(np_data)]),
-                                         newshape=(home_step, np_data.shape[1]))
-                    rt_data[:, 0] = np.arange(1, home_step + 1, 1)
-                    return rt_data
+                scores = self.selected_date_process(np_data)
+                target_indexes = heapq.nlargest(home_step, range(len(scores)), scores.__getitem__)
+                rt_data = np.array([])
+                for k, index in enumerate(target_indexes):
+                    rt_data = np.append(rt_data, (k + 1, np_data[index, 1], np_data[index, 2]))
+                rt_data = np.reshape(rt_data, newshape=(len(target_indexes), 3))
+                return rt_data
             else:
-                return np_data
-        else:  # 基于home_review_twice_range返回已复习的数据
+                np_data[:, 0] = range(1, len(np_data) + 1, 1)
+                return np_data[:, :3]
+        else:  # 基于home_last_reviewed返回已复习的数据
             print("[vocabulary_sql]:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
                   "Already reviewed today, return the reviewed words.")
-            home_review_twice_range = config_dict['home_review_twice_range']
-            if home_arrived_pos - home_review_twice_range < 0:
-                rt_data = np.reshape(np.append(np_data[home_arrived_pos - home_review_twice_range:],
-                                               np_data[:home_arrived_pos]),
-                                     newshape=(home_review_twice_range, np_data.shape[1]))
-            else:
-                rt_data = np_data[home_arrived_pos - home_review_twice_range:home_arrived_pos]
-            rt_data[:, 0] = np.arange(1, home_review_twice_range + 1, 1)
+            home_last_reviewed_indexes = list(config_dict['home_last_reviewed'])
+            rt_data = np.array([])
+            for k, index in enumerate(home_last_reviewed_indexes):
+                rt_data = np.append(rt_data, (k + 1, np_data[index, 1], np_data[index, 2]))
+            rt_data = np.reshape(rt_data, newshape=(len(home_last_reviewed_indexes), 3))
             return rt_data
 
+
+    def update_config_home_last_reviewed(self, config_dict):
+        try:
+            with self.connection.cursor() as cursor:
+                sql = "SELECT `word_id`, `en_word`, `chi_val`, `create_time`, `review_time` FROM qiyu_vocabulary"
+                cursor.execute(sql)
+                result = cursor.fetchall()
+        except pymysql.Error as e:
+            print(e)
+            self.connection.rollback()
+            self.connection.close()
+        finally:
+            self.connection.commit()
+            print("[vocabulary_sql]:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+                  "Data got.")
+
+        np_data = np.asarray(result, dtype=np.str_)
+
+        home_step = config_dict['home_step']
+        if home_step < len(np_data):
+            scores = self.selected_date_process(np_data)
+            target_indexes = heapq.nlargest(home_step, range(len(scores)), scores.__getitem__)
+            config_dict['home_last_reviewed'] = target_indexes
+        else:
+            config_dict['home_last_reviewed'] = range(len(np_data))
+
+        f = open(self.config_abs_path, 'w+', encoding='utf-8')
+        yaml.dump(config_dict, stream=f, allow_unicode=True)
+        f.close()
 
     def close_connection(self):
         try:

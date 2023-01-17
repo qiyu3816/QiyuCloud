@@ -5,6 +5,8 @@ python vocabulary_tool.py <password> <mode:input|output> <input_path|output_path
 """
 
 import sys
+import time
+import datetime
 import pandas as pd
 import numpy as np
 import pymysql.cursors
@@ -18,7 +20,7 @@ def output2xlsx(connection, path):
     """
     try:
         with connection.cursor() as cursor:
-            sql = "SELECT `en_word`, `chi_val` FROM qiyu_vocabulary"
+            sql = "SELECT `en_word`, `chi_val`, `create_time`, `review_time` FROM qiyu_vocabulary"
             cursor.execute(sql)
             result = cursor.fetchall()
     except pymysql.Error as e:
@@ -31,9 +33,12 @@ def output2xlsx(connection, path):
         print("Data got, connection will be closed and file will be written.")
         connection.close()
 
-    np_data = np.asarray(result, dtype=(np.str_, np.str_))
+    np_data = np.asarray(result, dtype=np.str_)
+
     data_frame = pd.DataFrame({'en_word': np_data[:, 0],
-                               'chi_val': np_data[:, 1]})
+                               'chi_val': np_data[:, 1],
+                               'create_time': np_data[:, 2],
+                               'review_time': np_data[:, 3]})
     writer = pd.ExcelWriter(path)
     data_frame.to_excel(writer, index=False)
     writer.save()
@@ -50,11 +55,14 @@ def input_from_xlsx(connection, path):
     data_frame = pd.read_excel(path)
     values = np.array(data_frame.values)
     print("Read {} items.".format(values.shape[0]))
-    tuple_data = list(zip(values[:, 0], values[:, 1], values[:, 1]))
+    tuple_data = []
+    for i in range(len(values)):
+        tuple_data.append((values[i, 0], values[i, 1], time.strftime("%Y-%m-%d", time.localtime()), values[i, 1]))
 
     try:
         with connection.cursor() as cursor:
-            sql = "INSERT INTO qiyu_vocabulary (`en_word`, `chi_val`) VALUES(%s, %s) ON DUPLICATE KEY UPDATE chi_val=%s"
+            sql = "INSERT INTO qiyu_vocabulary (`en_word`, `chi_val`, `create_time`) " \
+                  "VALUES(%s, %s, %s) ON DUPLICATE KEY UPDATE chi_val=%s"
             for item in tuple_data:
                 cursor.execute(sql, item)
     except pymysql.Error as e:

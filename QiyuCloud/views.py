@@ -90,7 +90,7 @@ def home(request):
     # 处理review_finish
     review_finish_button_click = False
     if request.method == 'POST':
-        if request.POST.get('review_finish', True):
+        if request.POST.get('review_finish') is not None:
             review_finish_button_click = True
 
     already_finished = False
@@ -101,11 +101,9 @@ def home(request):
         context['review_finish_button'] = True
         if review_finish_button_click and not already_finished:
             config_dict['home_last_review_date'] = time.strftime("%Y-%m-%d", time.localtime())
-            config_dict['home_review_twice_range'] = config_dict['home_step']
-            config_dict['home_arrived_pos'] += config_dict['home_step']
-            f = open(config_path, 'w+', encoding='utf-8')
-            yaml.dump(config_dict, stream=f, allow_unicode=True)
-            f.close()
+            vocabulary_op = vocabulary_sql(os.path.abspath(config_path))
+            vocabulary_op.update_config_home_last_reviewed(config_dict)
+            vocabulary_op.close_connection()
             print("[home_page]:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
                   "`review_finish_button_click` is True and related change has been set.")
     else:
@@ -150,6 +148,7 @@ def home(request):
                     vocabulary_op.insert_batch(tuple_list)
                 else:
                     vocabulary_op.insert_one(tuple_list[0])
+                vocabulary_op.close_connection()
 
                 context['insert_state'] = '插入完成'
                 print("[home_page]:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),

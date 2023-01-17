@@ -35,8 +35,8 @@
     function review_finish() {
         $.ajax({
             url: '{{ review_finish_button_url }}',
-            method: 'POST',
-            review_finish: true
+            type: 'POST',
+            data: {'review_finish': true}
         });
         window.setTimeout(function() {
              window.location.reload();
