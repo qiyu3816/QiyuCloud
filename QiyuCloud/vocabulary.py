@@ -144,13 +144,28 @@ class vocabulary_sql:
         if home_step < len(np_data):
             scores = self.selected_date_process(np_data)
             target_indexes = heapq.nlargest(home_step, range(len(scores)), scores.__getitem__)
-            config_dict['home_last_reviewed'] = target_indexes
         else:
-            config_dict['home_last_reviewed'] = range(len(np_data))
+            target_indexes = range(len(np_data))
 
+        config_dict['home_last_reviewed'] = target_indexes
         f = open(self.config_abs_path, 'w+', encoding='utf-8')
         yaml.dump(config_dict, stream=f, allow_unicode=True)
         f.close()
+
+        try:
+            with self.connection.cursor() as cursor:
+                sql = "UPDATE qiyu_vocabulary SET review_time=%s where en_word=%s"
+                for i in target_indexes:
+                    cursor.execute(sql, (time.strftime("%Y-%m-%d", time.localtime()), np_data[i, 1]))
+        except pymysql.Error as e:
+            print(e)
+            self.connection.rollback()
+            self.connection.close()
+        finally:
+            self.connection.commit()
+            print("[vocabulary_sql]:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+                  "Review time updating finished.")
+
 
     def close_connection(self):
         try:
