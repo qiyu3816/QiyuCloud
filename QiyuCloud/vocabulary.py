@@ -63,15 +63,20 @@ class vocabulary_sql:
 
 
     def selected_date_process(self, np_data):
+        """
+        根据词条的review_time计算score review_time旧的score大
+        :param np_data:
+        :return:
+        """
         scores = np.array([])  # 热度 越高被选中概率越大
         today_date = datetime.datetime.strptime(time.strftime("%Y-%m-%d", time.localtime()), "%Y-%m-%d").date()
         for item in np_data:
-            create_dis = (today_date - datetime.datetime.strptime(item[3], "%Y-%m-%d").date()).days
             if item[4] == 'None':
-                review_dis = 0
+                # 如果review_time为空 直接用create_time替代
+                review_dis = (today_date - datetime.datetime.strptime(item[3], "%Y-%m-%d").date()).days
             else:
                 review_dis = (today_date - datetime.datetime.strptime(item[4], "%Y-%m-%d").date()).days
-            scores = np.append(scores, np.exp(max(1 - create_dis, -4)) + np.exp(review_dis - 1))
+            scores = np.append(scores, max(np.exp(int(review_dis)), 100))
         return scores
 
 
