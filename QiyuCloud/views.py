@@ -7,6 +7,7 @@ import json
 import yaml
 import os
 import time
+import re
 
 from .vocabulary import vocabulary_sql
 
@@ -129,10 +130,10 @@ def home(request):
     if request.method == 'POST':
         if request.POST.get('insert_data'):
             insert_data = request.POST.get('insert_data')
-            insert_processed_data = insert_data.split()
+            insert_processed_data = insert_data.splitlines()
             sign = True
             for i in range(0, len(insert_processed_data), 2):
-                if not insert_processed_data[i].encode('utf-8').isalpha():
+                if not isEnglishWord(str(insert_processed_data[i])):
                     context['insert_state'] = '格式错误'
                     sign = False
                     print("[home_page]:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
@@ -155,6 +156,11 @@ def home(request):
                       "New data insert finished.")
 
     return render(request, 'home.html', context)
+
+def isEnglishWord(data):
+    if re.match(r'^[a-z|A-Z|\t|\s]+$', data) is None:
+        return False
+    return True
 
 def data(request):
     vocabulary_op = vocabulary_sql(os.path.abspath(config_path))
