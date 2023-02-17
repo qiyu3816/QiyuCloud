@@ -158,7 +158,7 @@ def home(request):
     return render(request, 'home.html', context)
 
 def isEnglishWord(data):
-    if re.match(r'^[a-z|A-Z|\t|\s|-]+$', data) is None:
+    if re.match(r'^[a-z|A-Z|\t|\s|-|,|\'|\(|\)]+$', data) is None:
         return False
     return True
 
