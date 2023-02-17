@@ -76,7 +76,7 @@ class vocabulary_sql:
                 review_dis = (today_date - datetime.datetime.strptime(item[3], "%Y-%m-%d").date()).days
             else:
                 review_dis = (today_date - datetime.datetime.strptime(item[4], "%Y-%m-%d").date()).days
-            scores = np.append(scores, max(np.exp(int(review_dis)), 100))
+            scores = np.append(scores, min(np.exp(int(review_dis)), 100))
         return scores
 
 
