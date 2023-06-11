@@ -57,12 +57,12 @@ def input_from_xlsx(connection, path):
     print("Read {} items.".format(values.shape[0]))
     tuple_data = []
     for i in range(len(values)):
-        tuple_data.append((values[i, 0], values[i, 1], time.strftime("%Y-%m-%d", time.localtime()), values[i, 1]))
+        tuple_data.append((values[i, 0], values[i, 1], values[i, 2], values[i, 3], values[i, 1]))
 
     try:
         with connection.cursor() as cursor:
-            sql = "INSERT INTO qiyu_vocabulary (`en_word`, `chi_val`, `create_time`) " \
-                  "VALUES(%s, %s, %s) ON DUPLICATE KEY UPDATE chi_val=%s"
+            sql = "INSERT INTO qiyu_vocabulary (`en_word`, `chi_val`, `create_time`, `review_time`) " \
+                  "VALUES(%s, %s, %s, %s) ON DUPLICATE KEY UPDATE chi_val=%s"
             for item in tuple_data:
                 cursor.execute(sql, item)
     except pymysql.Error as e:
