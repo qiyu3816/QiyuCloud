@@ -113,9 +113,11 @@ class vocabulary_sql:
                 for k, index in enumerate(target_indexes):
                     rt_data = np.append(rt_data, (k + 1, np_data[index, 1], np_data[index, 2]))
                 rt_data = np.reshape(rt_data, newshape=(len(target_indexes), 3))
+                rt_data = np.random.shuffle(rt_data)
                 return rt_data
             else:
                 np_data[:, 0] = range(1, len(np_data) + 1, 1)
+                np_data = np.random.shuffle(np_data)
                 return np_data[:, :3]
         else:  # 基于home_last_reviewed返回已复习的数据
             print("[vocabulary_sql]:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
@@ -125,6 +127,7 @@ class vocabulary_sql:
             for k, index in enumerate(home_last_reviewed_indexes):
                 rt_data = np.append(rt_data, (k + 1, np_data[index, 1], np_data[index, 2]))
             rt_data = np.reshape(rt_data, newshape=(len(home_last_reviewed_indexes), 3))
+            rt_data = np.random.shuffle(rt_data)
             return rt_data
 
 
